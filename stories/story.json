@@ -1,0 +1,27 @@
+{
+  "config": {
+    "saveSlot": "northFentonSave",
+    "defaultFont": "'Courier New', monospace"
+  },
+  "scenes": [
+    {
+      "id": "arrival",
+      "name": "Narrator",
+      "bg": "assets/bg/house_exterior.png",
+      "bgm": "assets/audio/wind.wav",
+      "text": [
+        "On the outskirts of North Fenton, there\u2019s a two-story house that the county swears doesn\u2019t exist."
+      ]
+    },
+    {
+      "id": "recognition",
+      "name": "Narrator",
+      "bg": "assets/bg/living_room.png",
+      "sfx": "assets/audio/humming.wav",
+      "text": [
+        "She looked at me.",
+        "Saw me."
+      ]
+    }
+  ]
+}

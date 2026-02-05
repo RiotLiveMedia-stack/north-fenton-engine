@@ -1,0 +1,67 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>North Fenton</title>
+<style>
+body,html{margin:0;background:#000;color:#d4d4d4;font-family:'Courier New',monospace}
+#stage{min-height:100vh;padding:40px;position:relative}
+#actors{position:absolute;inset:0;pointer-events:none}
+.actor{position:absolute;transform-origin:center bottom}
+.choice{color:#8b0000;cursor:pointer;margin:12px 0}
+#error{position:fixed;inset:0;background:#000;color:#f44;display:none;padding:40px}
+</style>
+</head>
+<body>
+<div id="stage"><div id="actors"></div></div>
+<div id="error"></div>
+
+<script>
+// background loader (PNG/JPG safe)
+function setBackground(src){
+ if(!src) return;
+ const img=new Image();
+ img.onload=()=>{document.body.style.backgroundImage=`url(${src})`;};
+ img.onerror=()=>console.warn("BG failed:",src);
+ img.src=src;
+}
+
+// camera / horizon
+const Camera={fov:600,horizonY:innerHeight*0.35,centerX:innerWidth/2,
+ project({x=0,y=0,z=0,w=100,h=100}){const s=this.fov/(this.fov+z);
+  return{x:this.centerX+x*s,y:this.horizonY+y*s,w:w*s,h:h*s};}};
+addEventListener('resize',()=>{Camera.horizonY=innerHeight*0.35;Camera.centerX=innerWidth/2;});
+
+// audio
+const AudioBus={bgm:null,
+ playBGM(s){if(!s)return;if(this.bgm){this.bgm.pause();this.bgm=null;}
+  const a=new Audio(s);a.loop=true;a.play().catch(()=>{});this.bgm=a;},
+ playSFX(s){if(!s)return;new Audio(s).play().catch(()=>{});}};
+
+// engine
+const Engine={story:null,idx:0,
+ async init(){
+  try{
+   const r=await fetch('./stories/story.json');
+   if(!r.ok) throw new Error("story.json missing");
+   this.story=await r.json();
+   this.render();
+  }catch(e){this.fail(e);}
+ },
+ scene(){return this.story.scenes[this.idx];},
+ next(){ if(this.idx<this.story.scenes.length-1){this.idx++;this.render();}},
+ render(){
+  const s=this.scene(),stage=document.getElementById('stage');
+  // FIX: only clear direct text children
+  stage.querySelectorAll(':scope > p, :scope > .choice').forEach(e=>e.remove());
+  setBackground(s.bg);
+  if(s.bgm) AudioBus.playBGM(s.bgm);
+  if(s.sfx) AudioBus.playSFX(s.sfx);
+  (s.text||[]).forEach(t=>{const p=document.createElement('p');p.textContent=t;stage.appendChild(p);});
+ },
+ fail(e){
+  const er=document.getElementById('error');
+  er.style.display='block';er.textContent=e.message;
+ }};
+Engine.init();
+stage.onclick=()=>Engine.next();
+</script>
+</body></html>
