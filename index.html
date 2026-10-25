@@ -6,7 +6,9 @@ body,html{margin:0;background:#000;color:#d4d4d4;font-family:'Courier New',monos
 #stage{min-height:100vh;padding:40px;position:relative}
 #actors{position:absolute;inset:0;pointer-events:none}
 .actor{position:absolute;transform-origin:center bottom}
-.choice{color:#8b0000;cursor:pointer;margin:12px 0}
+.choice{display:block;width:min(600px,100%);box-sizing:border-box;background:transparent;border:1px solid #8b0000;color:#8b0000;font:inherit;text-align:left;padding:12px 14px;cursor:pointer;margin:12px 0}
+.choice:hover,.choice:focus-visible{background:#8b0000;color:#000;outline:none}
+.choice:disabled{opacity:.45;cursor:not-allowed}
 #error{position:fixed;inset:0;background:#000;color:#f44;display:none;padding:40px}
 </style>
 </head>
@@ -34,7 +36,8 @@ addEventListener('resize',()=>{Camera.horizonY=innerHeight*0.35;Camera.centerX=i
 const AudioBus={bgm:null,
  playBGM(s){if(!s)return;if(this.bgm){this.bgm.pause();this.bgm=null;}
   const a=new Audio(s);a.loop=true;a.play().catch(()=>{});this.bgm=a;},
- playSFX(s){if(!s)return;new Audio(s).play().catch(()=>{});}};
+ playSFX(s){if(!s)return;new Audio(s).play().catch(()=>{});}
+};
 
 // engine
 const Engine={story:null,idx:0,
@@ -47,21 +50,51 @@ const Engine={story:null,idx:0,
   }catch(e){this.fail(e);}
  },
  scene(){return this.story.scenes[this.idx];},
- next(){ if(this.idx<this.story.scenes.length-1){this.idx++;this.render();}},
+ hasChoices(scene){return Array.isArray(scene.choices) && scene.choices.length>0;},
+ next(){
+  // A choice scene advances only through one of its rendered choices.
+  if(this.hasChoices(this.scene())) return;
+  if(this.idx<this.story.scenes.length-1){this.idx++;this.render();}
+ },
+ choose(targetId){
+  const targetIndex=this.story.scenes.findIndex(scene=>scene.id===targetId);
+  if(targetIndex===-1){
+   this.fail(new Error(`Unknown choice target: ${targetId}`));
+   return;
+  }
+  this.idx=targetIndex;
+  this.render();
+ },
  render(){
   const s=this.scene(),stage=document.getElementById('stage');
-  // FIX: only clear direct text children
+  // FIX: only clear direct text and choice children; preserve #actors.
   stage.querySelectorAll(':scope > p, :scope > .choice').forEach(e=>e.remove());
   setBackground(s.bg);
   if(s.bgm) AudioBus.playBGM(s.bgm);
   if(s.sfx) AudioBus.playSFX(s.sfx);
   (s.text||[]).forEach(t=>{const p=document.createElement('p');p.textContent=t;stage.appendChild(p);});
+
+  // Optional branching schema:
+  // choices: [{ "text": "Choice label", "target": "scene-id" }]
+  (s.choices||[]).forEach(choice=>{
+   const button=document.createElement('button');
+   const target=typeof choice.target==='string' ? choice.target : '';
+   button.type='button';
+   button.className='choice';
+   button.textContent=typeof choice.text==='string' ? choice.text : 'Continue';
+   button.disabled=!target;
+   button.addEventListener('click',event=>{
+    event.stopPropagation();
+    if(target) this.choose(target);
+   });
+   stage.appendChild(button);
+  });
  },
  fail(e){
   const er=document.getElementById('error');
   er.style.display='block';er.textContent=e.message;
  }};
 Engine.init();
-stage.onclick=()=>Engine.next();
+document.getElementById('stage').onclick=()=>Engine.next();
 </script>
 </body></html>
